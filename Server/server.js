@@ -8,20 +8,46 @@ marginsQueryString = 'https://www.google.com/finance?output=json&start=0&num=500
 growthQueryString = 'https://www.google.com/finance?output=json&start=0&num=5000&q=%5Bcurrency+%3D%3D+%22AUD%22+%26+%28exchange+%3D%3D+%22ASX%22%29+%26+%28net_income_growth_rate_5years+%3E%3D+-66%29+%26+%28net_income_growth_rate_5years+%3C%3D+157%29+%26+%28revenue_growth_rate_5years+%3E%3D+-91.84%29+%26+%28revenue_growth_rate_5years+%3C%3D+919%29+%26+%28revenue_growth_rate_10years+%3E%3D+-67.68%29+%26+%28revenue_growth_rate_10years+%3C%3D+147%29+%26+%28eps_growth_rate_5years+%3E%3D+-74.68%29+%26+%28eps_growth_rate_5years+%3C%3D+165%29+%26+%28eps_growth_rate_10years+%3E%3D+-69.29%29+%26+%28eps_growth_rate_10years+%3C%3D+53.01%29%5D&ei=ZjmnVqG2IsSD0ASr6KegAw';
 queryUrlStrings = [];
 queryUrlStrings.push(priceQueryString, valuationQuerySring, dividendQuerySring, financialRatiosQueryString, operatingMetricsQueryString, stockMetricsQueryString, marginsQueryString, growthQueryString);
-results = [];
+snapshot = [];
 Meteor.methods({
 	'getData': function (msg) {
+		HTTP.get("https://www.google.com/finance?output=json&start=0&num=5000&noIL=1&q=[currency%20%3D%3D%20%22AUD%22%20%26%20%28exchange%20%3D%3D%20%22ASX%22%29%20%26%20%28beta%20%3E%3D%20-7.07%29%20%26%20%28beta%20%3C%3D%209.8%29%20%26%20%28shares_floating%20%3E%3D%200%29%20%26%20%28shares_floating%20%3C%3D%2023222%29%20%26%20%28percent_institutional_held%20%3E%3D%200%29%20%26%20%28percent_institutional_held%20%3C%3D%2028.95%29%20%26%20%28volume%20%3E%3D%200%29%20%26%20%28volume%20%3C%3D%20200651%29%20%26%20%28average_volume%20%3E%3D%200%29%20%26%20%28average_volume%20%3C%3D%2023020000%29]&restype=company&ei=VaCvVvj4HoOL0gTBkZqwAg", function (error, result) {
+		var json = eval("(" + result.content + ")");
+		for (var i = json.searchresults.length - 1; i >= 0; i--) {
+			snapshot.push(new Stock(json.searchresults[i]));
+			};
+		});
+		
 		for (var i = queryUrlStrings.length - 1; i >= 0; i--) {
 			HTTP.get("https://www.google.com/finance?output=json&start=0&num=5000&noIL=1&q=[currency%20%3D%3D%20%22AUD%22%20%26%20%28exchange%20%3D%3D%20%22ASX%22%29%20%26%20%28beta%20%3E%3D%20-7.07%29%20%26%20%28beta%20%3C%3D%209.8%29%20%26%20%28shares_floating%20%3E%3D%200%29%20%26%20%28shares_floating%20%3C%3D%2023222%29%20%26%20%28percent_institutional_held%20%3E%3D%200%29%20%26%20%28percent_institutional_held%20%3C%3D%2028.95%29%20%26%20%28volume%20%3E%3D%200%29%20%26%20%28volume%20%3C%3D%20200651%29%20%26%20%28average_volume%20%3E%3D%200%29%20%26%20%28average_volume%20%3C%3D%2023020000%29]&restype=company&ei=VaCvVvj4HoOL0gTBkZqwAg", function (error, result) {
-				results.push(result.content);
+				var json = eval("(" + result.content + ")");
+				for (var i = json.searchresults.length - 1; i >= 0; i--) {
+					snapshot.Stock[i].values.push(getValues(json.searchresults[i]));
+				}
 			});
+		}
 
-		};
+
 		return true;
 	}
 });
-Meteor.methods({
-	'sendLogMessage': function () {
-		console.log("Hello world");
-	}
-});
+
+
+function Stock(data) {
+	this.exchange = data.exchange;
+	this.id = data.id;
+	this.is_active = data.is_active;
+	this.is_supported_exchange = data.is_supported_exchange;
+	this.local_currency_symbol = data.local_currency_symbol;
+	this.ticker = data.ticker;
+	this.title = data.title;
+}
+
+function getValues(data) {
+	var values = [];
+	for (var i = data.columns.length - 1; i >= 0; i--) {
+		values[data.columns[i].field] = data.columns[i].value;	
+	};
+	return values;
+}
+

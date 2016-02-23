@@ -1,0 +1,127 @@
+
+snapshot = [];
+var request = {
+	url: 'https://www.google.com/finance?',
+	output: 'json',
+	start: 0,
+	num: 5000,
+	noIL: 1,
+	currency: 'AUD',
+	exchange: 'ASX'
+};
+var parameters = {
+	last_price : -99999999999,
+	earnings_per_share : -99999999999,
+	change_today_percent : -99999999999,
+	high_52week : -99999999999,
+	low_52week : -99999999999,
+	price_change_52week : -99999999999,
+	average_50day_price : -99999999999,
+	average_150day_price : -99999999999,
+	average_150day_price : -99999999999,
+	average_200day_price : -99999999999,
+	price_change_13week : -99999999999,
+	price_change_26week : -99999999999,
+	market_cap : -99999999999,
+	pe_ratio : -99999999999,
+	forward_pe_1year : -99999999999,
+	dividend_recent_quarter : -99999999999,
+	dividend_next_quarter : -99999999999,
+	dividend_per_share : -99999999999,
+	dividend_next_year : -99999999999,
+	dividend_per_share_trailing_12months : -99999999999,
+	dividend_yield : -99999999999,
+	dividend_recent_year : -99999999999,
+	book_value_per_share_year : -99999999999,
+	cash_per_share_year : -99999999999,
+	current_assets_to_liabilities_ratio_year : -99999999999,
+	longterm_debt_to_assets_year : -99999999999,
+	longterm_debt_to_assets_quarter : -99999999999,
+	total_debt_to_assets_year : -99999999999,
+	total_debt_to_assets_quarter : -99999999999,
+	longterm_debt_to_equity_year : -99999999999,
+	longterm_debt_to_equity_quarter : -99999999999,
+	total_debt_to_equity_year : -99999999999,
+	total_debt_to_equity_quarter : -99999999999,
+	interest_coverage_year : -99999999999,
+	return_on_investment_trailing_12months : -99999999999,
+	return_on_investment_5years : -99999999999,
+	return_on_investment_year : -99999999999,
+	return_on_assets_trailing_12months : -99999999999,
+	return_on_assets_5years : -99999999999,
+	return_on_assets_year : -99999999999,
+	return_on_equity_trailing_12months : -99999999999,
+	return_on_equity_5years : -99999999999,
+	return_on_equity_year : -99999999999,	
+	beta : -99999999999,
+	shares_floating : -99999999999,
+	percent_institutional_held : -99999999999,
+	volume : -99999999999,
+	average_volume : -99999999999,
+	gross_margin_trailing_12months : -99999999999,
+	ebitd_margin_trailing_12months : -99999999999,
+	operating_margin_trailing_12months : -99999999999,
+	net_profit_margin_percent_trailing_12months : -99999999999,
+	net_income_growth_rate_5years : -99999999999,
+	revenue_growth_rate_5years : -99999999999,
+	revenue_growth_rate_10years : -99999999999,
+	eps_growth_rate_5years : -99999999999,
+	eps_growth_rate_10years : -99999999999
+};
+
+function paramaterBuilder(parameters) {
+	var names = [];
+	var paramaterString = [];
+	for (var o in parameters) {
+		names.push(o); // the property name
+	};
+	for (var i = names.length - 1; i >= 0; i--) {
+		var string = "+%26+%28" + names[i] + "+%3E%3D+" + parameters[names[i]] + "%29";
+		paramaterString.push(string);
+	}
+	return paramaterString
+};
+
+var pString = paramaterBuilder(parameters).join('');
+
+function requestBuilder(request) {
+	var requestURL = request.url + "output=" + request.output + "&start=" + request.start + "&num=" + request.num + "&noIL=" + request.noIL + "&q=[currency%20%3D%3D%20%22" + request.currency + "%22%20%26%20%28exchange%20%3D%3D%20%22" + request.exchange + "%22%29" + pString + "]&restype=company&ei=Y4i7VrnsN8OI0ASdrYTABQ";
+	return requestURL
+};
+var requestURL = requestBuilder(request);
+console.log(requestURL);
+
+function Stock(data) {
+	this.exchange = data.exchange;
+	this.id = data.id;
+	this.is_active = data.is_active;
+	this.is_supported_exchange = data.is_supported_exchange;
+	this.local_currency_symbol = data.local_currency_symbol;
+	this.ticker = data.ticker;
+	this.title = data.title;
+}
+
+function getValues(data) {
+	var values = [];
+	for (var i = data.columns.length - 1; i >= 0; i--) {
+		values[data.columns[i].field] = data.columns[i].value;
+	};
+	return values;
+}
+
+HTTP.get(requestURL, function (error, result) {
+	var json = eval("(" + result.content + ")");
+	for (var i = json.searchresults.length - 1; i >= 0; i--) {
+		snapshot.push(new Stock(json.searchresults[i]));
+	};
+});
+/*
+for (var i = queryUrlStrings.length - 1; i >= 0; i--) {
+	HTTP.get(queryUrlStrings[i], function (error, result) {
+		var json = eval("(" + result.content + ")");
+		for (var i = json.searchresults.length - 1; i >= 0; i--) {
+			snapshot.Stock[i].values.push(getValues(json.searchresults[i]));
+		}
+	});
+}
+*/

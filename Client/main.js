@@ -12,7 +12,7 @@ if (Meteor.isClient) {
 	});
 	Template.requestData.events({
 		"click .requestData": function () {
-			Meteor.call('getData',function(error,result){console.log('done');});
+			Meteor.call('getData',function (error,result) {});
 		}
 	});
 
