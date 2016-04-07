@@ -12,14 +12,7 @@
 </body>
 
 <template name="requestData">
- 	<button name="requestData" class="requestData">Request Data</button> 
- 	<ul>
-      {{#each responses}}
-        {{> response}}
-      {{/each}}
-    </ul>
-</template>
-
-<template name="response">
-  <li>{{text}}</li>
+ 	<button name="getStocks" class="getStocks">Get Stocks</button> 
+  <button name="getIndicators" class="getIndicators">Get Indicators</button> 
+  <button name="saveIndicators" class="saveIndicators">Save Indicators</button> 
 </template>
