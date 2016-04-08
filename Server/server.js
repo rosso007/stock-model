@@ -79,7 +79,8 @@ function requestBuilder(request) {
 		requestURL = request.url + "output=" + request.output + "&start=" + request.start + "&num=" + request.num + "&noIL=" + request.noIL + "&q=[currency%20%3D%3D%20%22" + request.currency + "%22%20%26%20%28exchange%20%3D%3D%20%22" + request.exchange + "%22%29" + parameter + "]&restype=company&ei=Y4i7VrnsN8OI0ASdrYTABQ";
 		requestArray.push(requestURL);
 	}	
-};
+}
+
 var requestArray = [];
 
 
@@ -98,7 +99,7 @@ HTTP.get(requestArray[0], function (error, result) {
 	var json = eval("(" + result.content + ")");
 	for (var i = json.searchresults.length - 1; i >= 0; i--) {
 		snapshot.push(new Stock(json.searchresults[i]));
-	};
+	}
 });
 
 function insertIntoDB (stock) {
@@ -112,12 +113,12 @@ function insertIntoDB (stock) {
 	};
 	if (data.isActive.length < 1) {
 		data.isActive = true;
-	};
+	}
 	if (data.isSupportedExchange.length < 1) {
 		data.isSupportedExchange = true;
-	};
+	}
 	Stocks.insert(data);
-};
+}
 
 function getStocks () {
 	var ticker = null;
@@ -129,8 +130,8 @@ function getStocks () {
 			insertIntoDB(snapshot[i]);	
 			console.log("Inserted a stock record for " + snapshot[i].ticker + ":" + snapshot[i].exchange + " " + snapshot[i].title + ".");
 		}
-	};
-};
+	}
+}
 
 function Indicator(data) {
 	this.exchange = data.exchange;
@@ -151,31 +152,31 @@ function getIndicators() {
 			var results = eval("(" + result.content + ")");
 			for (var i = results.searchresults.length - 1; i >= 0; i--) {
 				indicatorsArray.push(new Indicator(results.searchresults[i]));
-			};
+			}
 		});	
-	};
+	}
 }
 
 function saveIndicators() {
-	var ticker = null;
-	var existingRecord = null;
-	for (var i = indicatorsArray.length - 1; i >= 0; i--) {
-		ticker = indicatorsArray[i].ticker;
-		existingRecord = Stocks.findOne({ ticker: ticker });		
-		if ( existingRecord == null) {
-			console.log("Error " + indicatorsArray[i].ticker + ":" + indicatorsArray[i].exchange + " was not found in the Stocks collection!!.");
-		} else {
-			var data = {
-				stockId: existingRecord._id,
-				field: indicatorsArray[i].field,
-				value: indicatorsArray[i].value,
-				dateObserved: indicatorsArray[i].date
-			};
-			Indicators.insert(data);
+	var data = null;
+	var arrayData = null;
+	for (var i = requestArray.length - 1; i >= 0; i--) {
+		HTTP.get(requestArray[i], function (error, result) {
+			var results = eval("(" + result.content + ")");
+			for (var i = results.searchresults.length - 1; i >= 0; i--) {
+				data = {
+					ticker: results.searchresults[i].ticker,
+					stockExchange: results.searchresults[i].exchange,
+					field: results.searchresults[i].columns[0].field,
+					value: results.searchresults[i].columns[0].value,
+					dateObserved: Date.now()
+				};
+				Indicators.insert(data);	
+			}
 		}
-	}
+	);}
 
-};
+}
 
 SyncedCron.add({
   name: 'Grab stocks from google finance.',
@@ -192,7 +193,7 @@ SyncedCron.add({
   name: 'Grab indicators from google finance.',
   schedule: function(parser) {
     // parser is a later.parse object
-    return parser.text('at 11:01 pm every 1 day');
+    return parser.text('at 11:05 pm every 1 day');
   },
   job: function() {
     getIndicators();
@@ -203,7 +204,7 @@ SyncedCron.add({
   name: 'Save indicators from google finance.',
   schedule: function(parser) {
     // parser is a later.parse object
-    return parser.text('at 11:02 pm every 1 day');
+    return parser.text('at 11:15 pm every 1 day');
   },
   job: function() {
     saveIndicators();
@@ -212,20 +213,19 @@ SyncedCron.add({
 
 SyncedCron.start();
 
+
 Meteor.methods({
 	getStocks: function () {
 		getStocks();
-		return console.log("Stock list grab complete.");
+		return console.log(Date.now() + " Stock list grab complete.");
 	},
 	getIndicators: function () {
 		getIndicators();
-		return console.log("Indicators grab complete.");
+		return console.log(Date.now() + " Indicators grab complete.");
 	},
 	saveIndicators: function () {
 		saveIndicators();
-		return console.log("Indicators saved on into the db.");
-	}	
+		return console.log(Date.now() + " Indicators saved on into the db.");
+	}		
 });
-
-
-}
+};
