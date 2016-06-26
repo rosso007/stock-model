@@ -140,6 +140,7 @@ function Indicator(data) {
 	this.field = data.columns[0].field;
 	this.value = data.columns[0].value;
 	this.date = Date.now();
+	this.dateString = new Date().toJSON().slice(0,10);
 }
 
 
@@ -169,15 +170,74 @@ function saveIndicators() {
 					stockExchange: results.searchresults[i].exchange,
 					field: results.searchresults[i].columns[0].field,
 					value: results.searchresults[i].columns[0].value,
-					dateObserved: Date.now()
+					dateObserved: Date.now(),
+					dateString: new Date().toJSON().slice(0,10)
 				};
 				Indicators.insert(data);	
 			}
 		}
 	);}
-
 }
 
+function fetchIndicators() {
+	var curser = null;
+	var array = null;
+	var json = null;
+	var p = null;
+	curser = Indicators.find({dateString: null},{limit: 20});
+	array = curser.fetch();
+	json = null;
+	for (p = array.length - 1; p >= 0; p--) {
+		json = array[p].dateObserved.toJSON().slice(0,10);
+		Indicators.update({ _id: array[p]._id },{$set: {dateString: json}},
+		 function (error,result) {
+		 	if (error != null) {
+		 		console.log(error);
+		 	}else {
+		 		console.log(result);
+		 	}})
+	}
+}
+
+function assign(object, source) {
+  Object.keys(source).forEach(function(key) {
+    object[key] = source[key];
+  });
+}
+
+var EPS = {};
+function pullData() {
+	var data,
+		json,
+		ticker,
+		value;
+	HTTP.get(requestArray[0], function (error, result) {
+		json = eval("(" + result.content + ")");
+		assign(EPS, {['date'] : new Date().toJSON().slice(0,10)})
+		for (var i = json.searchresults.length - 1; i >= 0; i--) {
+			ticker = json.searchresults[i].ticker;
+			value = json.searchresults[i].columns[0].value;
+			console.log({[ticker] : value});
+			assign(EPS, {[ticker] : value});
+		}
+		console.log(EPS);	
+	});	
+};
+
+function saveData() {
+	EPSGrowthRate10Years.insert(EPS, function (error, result) {
+		if (error =! null) {
+			console.log(error);
+		} else {
+			console.log(result);			
+		}
+	})
+}
+
+/*function deleteDateString () {
+	Indicators.update({dateString: {$exists: true}},{$unset: {dateString: ""}}, {multi: true})
+}*/
+/*
 SyncedCron.add({
   name: 'Grab stocks from google finance.',
   schedule: function(parser) {
@@ -209,13 +269,24 @@ SyncedCron.add({
   job: function() {
     saveIndicators();
   }
-});
+});*/
+
+/*SyncedCron.add({
+  name: 'add dateString.',
+  schedule: function(parser) {
+    // parser is a later.parse object
+    return parser.text('every 5 seconds');
+  },
+  job: function() {
+    fetchIndicators();
+  }
+});*/
 
 SyncedCron.start();
 
 
 Meteor.methods({
-	getStocks: function () {
+/*	getStocks: function () {
 		getStocks();
 		return console.log(Date.now() + " Stock list grab complete.");
 	},
@@ -226,6 +297,20 @@ Meteor.methods({
 	saveIndicators: function () {
 		saveIndicators();
 		return console.log(Date.now() + " Indicators saved on into the db.");
-	}		
+	},
+	fetchIndicators: function () {
+		fetchIndicators();
+		return console.log(Date.now() + " added 200 dateStrings.")
+	},
+	deleteDateString: function () {
+		var count = deleteDateString();
+	},
+*/	pullData: function () {
+		pullData();
+	},
+	saveData: function () {
+		saveData();
+	}
+
 });
 };
