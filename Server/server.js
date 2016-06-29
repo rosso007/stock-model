@@ -83,121 +83,8 @@ function requestBuilder(request) {
 
 var requestArray = [];
 
-
-function Stock(data) {
-	this.exchange = data.exchange;
-	this.is_active = data.is_active;
-	this.is_supported_exchange = data.is_supported_exchange;
-	this.local_currency_symbol = data.local_currency_symbol;
-	this.ticker = data.ticker;
-	this.title = data.title;
-}
-
 requestBuilder(request);
 
-HTTP.get(requestArray[0], function (error, result) {
-	var json = eval("(" + result.content + ")");
-	for (var i = json.searchresults.length - 1; i >= 0; i--) {
-		snapshot.push(new Stock(json.searchresults[i]));
-	}
-});
-
-function insertIntoDB (stock) {
-	var data = {
-		ticker: stock.ticker,
-		title: stock.title,
-		isActive: stock.is_active,
-		stockExchange: stock.exchange,
-		isSupportedExchange: stock.is_supported_exchange,
-		localCurrencySymbol: stock.local_currency_symbol
-	};
-	if (data.isActive.length < 1) {
-		data.isActive = true;
-	}
-	if (data.isSupportedExchange.length < 1) {
-		data.isSupportedExchange = true;
-	}
-	Stocks.insert(data);
-}
-
-function getStocks () {
-	var ticker = null;
-	var existingRecord = null;
-	for (var i = snapshot.length - 1; i >= 0; i--) {
-		ticker = snapshot[i].ticker;
-		existingRecord = Stocks.findOne({ ticker: ticker });
-		if ( existingRecord == null) {
-			insertIntoDB(snapshot[i]);	
-			console.log("Inserted a stock record for " + snapshot[i].ticker + ":" + snapshot[i].exchange + " " + snapshot[i].title + ".");
-		}
-	}
-}
-
-function Indicator(data) {
-	this.exchange = data.exchange;
-	this.ticker = data.ticker;
-	this.displayName = data.columns[0].display_name;
-	this.field = data.columns[0].field;
-	this.value = data.columns[0].value;
-	this.date = Date.now();
-	this.dateString = new Date().toJSON().slice(0,10);
-}
-
-
-
-var indicatorsArray = [];
-
-function getIndicators() {
-	for (var i = requestArray.length - 1; i >= 0; i--) {
-		HTTP.get(requestArray[i], function (error, result) {
-			var results = eval("(" + result.content + ")");
-			for (var i = results.searchresults.length - 1; i >= 0; i--) {
-				indicatorsArray.push(new Indicator(results.searchresults[i]));
-			}
-		});	
-	}
-}
-
-function saveIndicators() {
-	var data = null;
-	var arrayData = null;
-	for (var i = requestArray.length - 1; i >= 0; i--) {
-		HTTP.get(requestArray[i], function (error, result) {
-			var results = eval("(" + result.content + ")");
-			for (var i = results.searchresults.length - 1; i >= 0; i--) {
-				data = {
-					ticker: results.searchresults[i].ticker,
-					stockExchange: results.searchresults[i].exchange,
-					field: results.searchresults[i].columns[0].field,
-					value: results.searchresults[i].columns[0].value,
-					dateObserved: Date.now(),
-					dateString: new Date().toJSON().slice(0,10)
-				};
-				Indicators.insert(data);	
-			}
-		}
-	);}
-}
-
-function fetchIndicators() {
-	var curser = null;
-	var array = null;
-	var json = null;
-	var p = null;
-	curser = Indicators.find({dateString: null},{limit: 20});
-	array = curser.fetch();
-	json = null;
-	for (p = array.length - 1; p >= 0; p--) {
-		json = array[p].dateObserved.toJSON().slice(0,10);
-		Indicators.update({ _id: array[p]._id },{$set: {dateString: json}},
-		 function (error,result) {
-		 	if (error != null) {
-		 		console.log(error);
-		 	}else {
-		 		console.log(result);
-		 	}})
-	}
-}
 
 function assign(object, source) {
   Object.keys(source).forEach(function(key) {
@@ -205,49 +92,88 @@ function assign(object, source) {
   });
 }
 
-var EPS = {};
-function pullData() {
-	var data,
-		json,
-		ticker,
-		value;
-	HTTP.get(requestArray[0], function (error, result) {
-		json = eval("(" + result.content + ")");
-		assign(EPS, {['date'] : new Date().toJSON().slice(0,10)})
-		for (var i = json.searchresults.length - 1; i >= 0; i--) {
-			ticker = json.searchresults[i].ticker;
-			value = json.searchresults[i].columns[0].value;
-			console.log({[ticker] : value});
-			assign(EPS, {[ticker] : value});
-		}
-		console.log(EPS);	
-	});	
-};
-
-function saveData() {
-	EPSGrowthRate10Years.insert(EPS, function (error, result) {
-		if (error =! null) {
-			console.log(error);
-		} else {
-			console.log(result);			
-		}
-	})
+function getIndicators() {
+	var data = {};
+	for (var i = requestArray.length - 1; i >= 0; i--) {
+		data = {};
+		HTTP.get(requestArray[i], function (error, result) {
+			var results = eval("(" + result.content + ")");
+			assign(data, {['date'] : new Date().toJSON().slice(0,10)})
+			assign(data, {['indicator'] : results.searchresults[0].columns[0].field})
+			for (var i = results.searchresults.length - 1; i >= 0; i--) {
+				assign(data, {[results.searchresults[i].ticker] : results.searchresults[i].columns[0].value});
+			}
+					console.log('finished grabbing ' + results.searchresults[0].columns[0].field);	
+			Dataframe.insert(data, function (error, result) {
+				if (error) {
+						console.log(error);
+				} else {
+					console.log('saved ' + results.searchresults[0].columns[0].field);
+				}
+			})
+		});
+	}
 }
 
-/*function deleteDateString () {
-	Indicators.update({dateString: {$exists: true}},{$unset: {dateString: ""}}, {multi: true})
-}*/
-/*
-SyncedCron.add({
-  name: 'Grab stocks from google finance.',
-  schedule: function(parser) {
-    // parser is a later.parse object
-    return parser.text('at 11:00 pm every 1 day');
-  },
-  job: function() {
-    getStocks();
-  }
-});
+
+var inds = [
+    "EPS",
+    "QuoteLast",
+    "High52Week",
+    "Low52Week",
+    "QuotePercChange",
+    "Price52WeekPercChange",
+    "Price50DayAverage",
+    "Price150DayAverage",
+    "Price200DayAverage",
+    "Price13WeekPercChange",
+    "Price26WeekPercChange",
+    "DividendRecentQuarter",
+    "MarketCap",
+    "PE",
+    "ForwardPE1Year",
+    "DPSRecentYear",
+    "DividendNextQuarter",
+    "DividendPerShare",
+    "IAD",
+    "Dividend",
+    "DividendYield",
+    "BookValuePerShareYear",
+    "LTDebtToAssetsYear",
+    "CashPerShareYear",
+    "TotalDebtToAssetsYear",
+    "CurrentRatioYear",
+    "LTDebtToAssetsQuarter",
+    "TotalDebtToAssetsQuarter",
+    "LTDebtToEquityYear",
+    "LTDebtToEquityQuarter",
+    "AINTCOV",
+    "TotalDebtToEquityYear",
+    "TotalDebtToEquityQuarter",
+    "ReturnOnInvestmentTTM",
+    "ReturnOnInvestmentYear",
+    "ReturnOnInvestment5Years",
+    "ReturnOnAssetsTTM",
+    "ReturnOnAssetsYear",
+    "ReturnOnEquityTTM",
+    "ReturnOnAssets5Years",
+    "ReturnOnEquity5Years",
+    "ReturnOnEquityYear",
+    "Beta",
+    "Float",
+    "Volume",
+    "InstitutionalPercentHeld",
+    "EBITDMargin",
+    "AverageVolume",
+    "GrossMargin",
+    "OperatingMargin",
+    "NetIncomeGrowthRate5Years",
+    "RevenueGrowthRate5Years",
+    "RevenueGrowthRate10Years",
+    "EPSGrowthRate5Years",
+    "NetProfitMarginPercent",
+    "EPSGrowthRate10Years"
+]
 
 SyncedCron.add({
   name: 'Grab indicators from google finance.',
@@ -260,57 +186,13 @@ SyncedCron.add({
   }
 });
 
-SyncedCron.add({
-  name: 'Save indicators from google finance.',
-  schedule: function(parser) {
-    // parser is a later.parse object
-    return parser.text('at 11:15 pm every 1 day');
-  },
-  job: function() {
-    saveIndicators();
-  }
-});*/
-
-/*SyncedCron.add({
-  name: 'add dateString.',
-  schedule: function(parser) {
-    // parser is a later.parse object
-    return parser.text('every 5 seconds');
-  },
-  job: function() {
-    fetchIndicators();
-  }
-});*/
-
-SyncedCron.start();
+//SyncedCron.start();
 
 
 Meteor.methods({
-/*	getStocks: function () {
-		getStocks();
-		return console.log(Date.now() + " Stock list grab complete.");
-	},
 	getIndicators: function () {
 		getIndicators();
-		return console.log(Date.now() + " Indicators grab complete.");
-	},
-	saveIndicators: function () {
-		saveIndicators();
-		return console.log(Date.now() + " Indicators saved on into the db.");
-	},
-	fetchIndicators: function () {
-		fetchIndicators();
-		return console.log(Date.now() + " added 200 dateStrings.")
-	},
-	deleteDateString: function () {
-		var count = deleteDateString();
-	},
-*/	pullData: function () {
-		pullData();
-	},
-	saveData: function () {
-		saveData();
+		return console.log(Date.now() + " Indicators grab started.");
 	}
-
 });
 };
