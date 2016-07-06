@@ -119,14 +119,14 @@ SyncedCron.add({
   name: 'Grab indicators from google finance.',
   schedule: function(parser) {
     // parser is a later.parse object
-    return parser.text('at 11:05 pm every 1 day');
+    return parser.text('at 11:05 pm every weekday');
   },
   job: function() {
     getIndicators();
   }
 });
 
-//SyncedCron.start();
+SyncedCron.start();
 
 
 Meteor.methods({

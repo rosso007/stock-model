@@ -9,11 +9,14 @@ if (Meteor.isClient) {
 		}						
 	});
 
-	function downloadData (inds) {
+
+
+	function downloadData(inds) {
 		var data;
 		for (var i = inds.length - 1; i >= 0; i--) {
-			data = Dataframe.find({indicator : inds[i]}, {_id: 0, indicator: 0}, {sort: {date: 1}}).fetch();
-			downloadCSV(inds[i], data);
+			data = Dataframe.find({indicator : inds[i]}, {fields: {_id: 0, indicator: 0}}, {sort: {date: 1}}).fetch();
+			data = parseData(data);
+            downloadCSV(inds[i], data);
 		}
 
 	};
@@ -27,7 +30,7 @@ function convertArrayOfObjectsToCSV(args) {
         }
 
         columnDelimiter = args.columnDelimiter || ',';
-        lineDelimiter = args.lineDelimiter || '\n';
+        lineDelimiter = args.lineDelimiter || '\r\n';
 
         keys = Object.keys(data[0]);
 
@@ -70,6 +73,18 @@ function downloadCSV(inds, csvData) {
         link.click();
     }
 
+function parseData(data) {
+    var object = {};
+    for (var i = data.length - 1; i >= 0; i--) {
+        object = data[i];
+        for (var key in object) {
+            if (object.hasOwnProperty(key)) {
+                object[key] = object[key].replace(",","");
+            }
+         }            
+    }
+    return data 
+}
 
 	var inds = [
     "EPS",
